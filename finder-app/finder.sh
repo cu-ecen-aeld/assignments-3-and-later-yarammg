@@ -12,7 +12,7 @@ then
     exit 1
 fi
 
-x=$( tree $1 |  tail -1 | cut -d',' -f 2 | cut -d'f' -f 1 )
+x=$( find $1 -type f | wc -l )
 y=$( grep -Rl $2 $1 | wc -l )
 
 echo " The number of files are ${x} and the number of matching lines are ${y}."
