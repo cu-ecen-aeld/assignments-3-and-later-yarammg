@@ -17,7 +17,12 @@ bool do_system(const char *cmd)
  *   or false() if it returned a failure
 */
 
-    return true;
+  int ret = system(cmd);
+  if(ret == 0)
+  return true;
+  else 
+  return false;
+
 }
 
 /**
@@ -57,8 +62,54 @@ bool do_exec(int count, ...)
  *   (first argument to execv), and use the remaining arguments
  *   as second argument to the execv() command.
  *
-*/
+*/ 
+    int ret = fork();
+    if(ret == 0) // child
+    {
+        if (execv(command[0] , command ) == -1) 
+        {
+          perror("execv failed");
+          exit(EXIT_FAILURE);  // Exit child process with an error code
+        }
+          
+    }
+    else if (ret == -1) // error
+    {
+        return false;
+    }
+    else // parent
+    {
+        int status;
+      // Wait for the child process to terminate and get the exit status
+      if (waitpid(ret, &status, 0) == -1) 
+      {
+          perror("waitpid failed");
+          return false;
+      }
 
+      // Check if child exited normally
+      if (WIFEXITED(status)) 
+      {
+          int exit_status = WEXITSTATUS(status);
+          if (exit_status != 0) 
+          {
+              printf("Child process failed with exit status: %d\n", exit_status);
+              return false;
+          }
+      }
+      else if (WIFSIGNALED(status)) 
+      {
+          int signal_num = WTERMSIG(status);
+          printf("Child process terminated by signal: %d\n", signal_num);
+          return false;
+      }
+      else if (WIFSTOPPED(status)) 
+      {
+          int signal_num = WSTOPSIG(status);
+          printf("Child process stopped by signal: %d\n", signal_num);
+          return false;
+      }
+    }
     va_end(args);
 
     return true;
@@ -92,7 +143,55 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+  int kidpid;
 
+  int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+  if (fd < 0) { perror("open"); abort(); }
+  switch (kidpid = fork()) {
+    case -1: perror("fork"); return false;
+    case 0:
+      if (dup2(fd, 1) < 0) { perror("dup2"); return false; }
+      close(fd);
+    
+      if ( execv(command[0] , command ) == -1) 
+        {
+          perror("execv failed");
+          exit(EXIT_FAILURE);  // Exit child process with an error code
+        }
+    break;
+    default:
+      int status;
+      // Wait for the child process to terminate and get the exit status
+      if (waitpid(kidpid, &status, 0) == -1) 
+      {
+          perror("waitpid failed");
+          return false;
+      }
+
+      // Check if child exited normally
+      if (WIFEXITED(status)) 
+      {
+          int exit_status = WEXITSTATUS(status);
+          if (exit_status != 0) 
+          {
+              printf("Child process failed with exit status: %d\n", exit_status);
+              return false;
+          }
+      }
+      else if (WIFSIGNALED(status)) 
+      {
+          int signal_num = WTERMSIG(status);
+          printf("Child process terminated by signal: %d\n", signal_num);
+          return false;
+      }
+      else if (WIFSTOPPED(status)) 
+      {
+          int signal_num = WSTOPSIG(status);
+          printf("Child process stopped by signal: %d\n", signal_num);
+          return false;
+      }
+      close(fd);
+    }
     va_end(args);
 
     return true;
