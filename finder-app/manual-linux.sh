@@ -40,7 +40,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     echo "Checking out version ${KERNEL_VERSION}"
     git checkout ${KERNEL_VERSION}
 
-    sudo apt-get update && sudo apt-get install -y --no-install-recommends u-boot-tools kmod cpio flex bison libssl-dev psmisc libncurses-dev
+    sudo apt-get update && sudo apt-get install -y u-boot-tools kmod cpio flex bison libssl-dev psmisc libncurses-dev
     sudo apt-get install -y qemu-system-arm
     make defconfig
     make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
@@ -82,10 +82,10 @@ make distclean
 make defconfig
 make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j$(nproc)
 make CONFIG_PREFIX="${OUTDIR}/rootfs"  ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install
-sudo chmod u+s bin/busybox
+sudo chmod u+s ${OUTDIR}/busybox/busybox
 echo "Library dependencies"
-${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
-${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
+${CROSS_COMPILE}readelf -a ${OUTDIR}/busybox/busybox | grep "program interpreter"
+${CROSS_COMPILE}readelf -a ${OUTDIR}/busybox/busybox | grep "Shared library"
 
 cd ${OUTDIR}/rootfs
 cp "${OUTDIR}/arm-cross-compiler/install/arm-gnu-toolchain-13.3.rel1-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1" "lib/"
@@ -99,7 +99,7 @@ sudo mknod -m 666 dev/tty1 c 4 1
 cd ${FINDER_APP_DIR}
 make clean
 ${CROSS_COMPILE}gcc -o ${OUTDIR}/rootfs/home/writer writer.c
-
+chmod 777 finder.sh
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 #cp $FINDER_APP_DIR/writer ${OUTDIR}/rootfs/home
@@ -115,8 +115,9 @@ sudo chown -R root:root ${OUTDIR}/rootfs
 
 # TODO: Create initramfs.cpio.gz
 cd ${OUTDIR}/rootfs
-find . | cpio -H newc -o --owner root:root > ${OUTDIR}/rootfs/initramfs.cpio
+find . | cpio -H newc -o --owner root:root > ${OUTDIR}/initramfs.cpio
+cd ${OUTDIR}
 gzip -f initramfs.cpio
-cp "initramfs.cpio.gz" ${OUTDIR}
+#cp "initramfs.cpio.gz" ${OUTDIR}
 
 
