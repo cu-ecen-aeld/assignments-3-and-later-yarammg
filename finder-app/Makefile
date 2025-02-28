@@ -1,10 +1,9 @@
-writer : writer.o
+SRC = writer.c
+CC= $(CROSS_COMPILE)gcc
 
-writer.o: writer.c
-	gcc -c writer.c
+all: $(TARGET)
+	$(CC) $(SRC) -o writer
 
-CROSS_COMPILE:
-	aarch64-none-linux-gnu-gcc -g -Wall -c -o writer.o writer.c
 
 clean:
 	rm -f writer.o writer
