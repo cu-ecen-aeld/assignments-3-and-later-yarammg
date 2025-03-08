@@ -46,7 +46,7 @@ printf("1");
   int sockfd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
   if (sockfd < 0) 
   {
-    fprintf("Error opening socket: %s\n", strerror(errno));
+    printf("Error opening socket: %s\n", strerror(errno));
     exit(1);
   }
   
@@ -62,7 +62,7 @@ printf("1");
   int res = bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen);
   if (res < 0) 
   {
-    fprintf("Error binding to socket: %s\n", strerror(errno));
+    printf("Error binding to socket: %s\n", strerror(errno));
     exit(1);
   }
   
@@ -110,19 +110,19 @@ printf("1");
     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size);
     if(new_fd < 0)
     {
-      fprintf("Error accepting the connection: %s\n", strerror(errno));
+      printf("Error accepting the connection: %s\n", strerror(errno));
       exit(1);
     }
 
     if (getnameinfo((struct sockaddr*)&their_addr, addr_size, client_ip, sizeof(client_ip), NULL, 0, NI_NUMERICHOST) == 0) 
     {
-      printf("Accepted connection from %s\n", client_ip);
+      //printf("Accepted connection from %s\n", client_ip);
     } else {
       perror("getnameinfo failed");
     }
     
-    FILE *file = fopen(filename, "w");  // Open for writing, create if not exists
-    if (file == NULL) 
+    int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0644);  // Open for writing, create if not exists
+    if (fd == -1) 
     {
       perror("Error opening file");
       return 1;
@@ -131,17 +131,19 @@ printf("1");
     ssize_t bytes_read;
     while ((bytes_read = read(new_fd, buffer, sizeof(buffer))) > 0)
     {
-      write(file, buffer, bytes_read);
-      while ((bytes_read = read(file, buffer, sizeof(buffer))) > 0) 
+      char *newline = memchr(buffer, '\n', bytes_read);
+      size_t line_length = newline - buffer + 1;
+      write(fd, newline, line_length);
+      while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) 
       {
        send(new_fd, buffer, bytes_read, 0);
       }
     }  
-    fclose(file);
+    close(fd);
     printf("Closed connection from %s\n", client_ip);
     shutdown(new_fd, 2);
   }
-//remove(filename);
+  remove(filename);
   shutdown(sockfd,2);
   freeaddrinfo(servinfo);
   return 0;

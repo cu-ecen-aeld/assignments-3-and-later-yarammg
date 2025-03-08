@@ -1,6 +1,6 @@
 SRC = aesdsocket.c
 CC= $(CROSS_COMPILE)gcc
-#FLAGS= -Wall -Werror
+FLAGS= -Wall -Werror
 all: $(TARGET)
 	$(CC) $(SRC) -o aesdsocket $(FLAGS)
 
