@@ -1,8 +1,9 @@
 SRC = aesdsocket.c
 CC= $(CROSS_COMPILE)gcc
-FLAGS= -Wall -Werror
+CFLAGS ?= -Wall -Werror -g
+LDFLAGS ?= -lpthread
 all: $(TARGET)
-	$(CC) $(SRC) -o aesdsocket $(FLAGS) -pthread
+	$(CC) $(SRC) -o aesdsocket $(CFLAGS) $(LDFLAGS)
 
 
 clean:

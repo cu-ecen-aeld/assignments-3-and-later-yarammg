@@ -60,22 +60,24 @@ void * writeTimestamp(void *arg)
   ThreadData* data = (ThreadData *)arg;
   while(keep_running)
   {
+    sleep(10);
+    // Get the current system time
+    time_t now = time(NULL);
+    struct tm *timeinfo = localtime(&now);
+    char timestamp[64];
+    strftime(timestamp, sizeof(timestamp), "timestamp:%a, %d %b %Y %H:%M%S %z\n", timeinfo); 
+    
     pthread_mutex_lock(&file_mutex);
     FILE *file = fopen(filename, "a");
     if (file == NULL) {
       perror("Error opening file");
       pthread_mutex_unlock(&file_mutex);
       continue;
-    }
-    // Get the current system time
-    time_t now = time(NULL);
-    struct tm *timeinfo = localtime(&now);
-    char timestamp[64];
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo);    
-    fprintf(file, "Timestamp: %s\n", timestamp);
+    }   
+    fputs(timestamp, file);
     fclose(file);
     pthread_mutex_unlock(&file_mutex);
-    sleep(10);
+
   }
   data->done =1;
   return NULL;
