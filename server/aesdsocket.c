@@ -276,12 +276,6 @@ int main(int argc, char *argv[]) {
       SLIST_REMOVE(&head, node, Node, next);
       free(node);
     } 
-    // Free remaining nodes
-    while (!SLIST_EMPTY(&head)) {
-        Node *node = SLIST_FIRST(&head);
-        SLIST_REMOVE_HEAD(&head, next);
-        free(node);
-    }
     remove(filename);
     shutdown(sockfd, SHUT_RDWR);
     close(sockfd);
