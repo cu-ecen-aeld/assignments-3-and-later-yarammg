@@ -20,19 +20,11 @@
 
 // Structure for a singly linked list node (to track threads)
 typedef struct Node {
-    struct ThreadData *data;
-    SLIST_ENTRY(Node) next;
-} Node;
-
-typedef struct ThreadData {
     pthread_t thread_id;
     int done;
-} ThreadData;
-
-typedef struct ThreadParam {
-    struct ThreadData* data;
     int clientfd;
-} ThreadParam;
+    SLIST_ENTRY(Node) next;
+} Node;
 
 // Define the singly linked list head
 SLIST_HEAD(LinkedList, Node); // Creates a struct { struct Node *slh_first; }
@@ -57,8 +49,7 @@ void aesdsocket_signal_handler(int signo) {
 }
 void * writeTimestamp(void *arg)
 {
-  ThreadData* data = (ThreadData *)arg;
-  while(keep_running)
+  while(1)
   {
     sleep(10);
     // Get the current system time
@@ -79,13 +70,13 @@ void * writeTimestamp(void *arg)
     pthread_mutex_unlock(&file_mutex);
 
   }
-  data->done =1;
+
   return NULL;
 }
 
 void * sendrecv(void *arg)
 {
-  ThreadParam* param = (ThreadParam *)arg;
+  Node* param = (Node *)arg;
   
   char buffer[BUFFER_SIZE];
   ssize_t bytes_read;
@@ -100,7 +91,7 @@ void * sendrecv(void *arg)
           if (fd == -1) {
               perror("Error opening file");
               pthread_mutex_unlock(&file_mutex);
-              param->data->done =1;
+              param->done =1;
               break;
           }
           write(fd, buffer, line_length);
@@ -111,7 +102,7 @@ void * sendrecv(void *arg)
           if (fd_read == -1) {
               perror("Error opening file");
               pthread_mutex_unlock(&file_mutex);
-              param->data->done =1;
+              param->done =1;
               break;
           }
           char buffer2[BUFFER_SIZE];
@@ -133,7 +124,7 @@ void * sendrecv(void *arg)
           if (fd == -1) {
               perror("Error opening file");
               pthread_mutex_unlock(&file_mutex);
-              param->data->done =1;
+              param->done =1;
               break;
           }
           write(fd, buffer, bytes_read);
@@ -141,7 +132,7 @@ void * sendrecv(void *arg)
           pthread_mutex_unlock(&file_mutex);
       }
   }
-  param->data->done = 1;
+  param->done = 1;
   shutdown(clientfd, SHUT_RDWR);
   close(clientfd);
   return NULL;
@@ -150,7 +141,6 @@ void * sendrecv(void *arg)
 int main(int argc, char *argv[]) {
     signal(SIGINT, aesdsocket_signal_handler);
     signal(SIGTERM, aesdsocket_signal_handler);
-
     int daemon_mode = 0;
     if (argc > 1 && strcmp(argv[1], "-d") == 0) {
         daemon_mode = 1;
@@ -226,14 +216,9 @@ int main(int argc, char *argv[]) {
     struct LinkedList head = SLIST_HEAD_INITIALIZER(head); // Initialize the list
     SLIST_INIT(&head); // Ensure it's initialized
     
-    // Create thread for timestamps 
-    ThreadData *data = (ThreadData *)malloc(sizeof(ThreadData));
-    data->done = 0;
-    Node *new_node = (Node *)malloc(sizeof(Node));
-    new_node->data = data;
+    pthread_t timestamp_thread;
+    pthread_create(&timestamp_thread, NULL, writeTimestamp, NULL);
 
-    pthread_create(&(data->thread_id), NULL, writeTimestamp, (void*)data);
-    SLIST_INSERT_HEAD(&head, new_node, next);
     
     while (keep_running) {
         clientfd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size);
@@ -249,22 +234,18 @@ int main(int argc, char *argv[]) {
         }
         
         // Create thread for socket listener 
-        ThreadData *data = (ThreadData *)malloc(sizeof(ThreadData));
-        data->done = 0;
-        ThreadParam *param = (ThreadParam *)malloc(sizeof(ThreadParam));
-        param->clientfd = clientfd;
-        param->data = data;
-        Node *new_node = (Node *)malloc(sizeof(Node));
-        new_node->data = data;
+        Node * new_node = (Node *)malloc(sizeof(Node));
+        new_node->done = 0;
+        new_node->clientfd = clientfd;
 
-        pthread_create(&(data->thread_id), NULL, sendrecv, (void*)param);
+        pthread_create(&(new_node->thread_id), NULL, sendrecv, (void*)new_node);
         SLIST_INSERT_HEAD(&head, new_node, next);
         
         //Check if any thread completed its execution and join it
         Node *node, *temp_safe;
         SLIST_FOREACH_SAFE(node, &head, next, temp_safe) {
-            if (node->data->done == 1) { // Condition to delete
-                pthread_join(node->data->thread_id, NULL); 
+            if (node->done == 1) { // Condition to delete
+                pthread_join(node->thread_id, NULL); 
                 SLIST_REMOVE(&head, node, Node, next);
                 free(node);
             }
@@ -274,10 +255,13 @@ int main(int argc, char *argv[]) {
     // Upon reciving a sigkill stop all threads and free the linked list
     Node *node, *temp_safe;
     SLIST_FOREACH_SAFE(node, &head, next, temp_safe) {
-      pthread_join(node->data->thread_id, NULL); 
+      pthread_join(node->thread_id, NULL); 
       SLIST_REMOVE(&head, node, Node, next);
       free(node);
     } 
+    pthread_cancel(timestamp_thread);
+    pthread_join(timestamp_thread, NULL);
+    
     remove(filename);
     shutdown(sockfd, SHUT_RDWR);
     close(sockfd);
