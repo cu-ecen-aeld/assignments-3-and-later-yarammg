@@ -221,8 +221,8 @@ int main(int argc, char *argv[]) {
     SLIST_INIT(&head); // Ensure it's initialized
 
 #ifndef USE_AESD_CHAR_DEVICE
-    pthread_t timestamp_thread;
-    pthread_create(&timestamp_thread, NULL, writeTimestamp, NULL);
+    //pthread_t timestamp_thread;
+    //pthread_create(&timestamp_thread, NULL, writeTimestamp, NULL);
 #endif
     
     while (keep_running) {
@@ -265,10 +265,10 @@ int main(int argc, char *argv[]) {
       free(node);
     }
 #ifndef USE_AESD_CHAR_DEVICE    
-    pthread_cancel(timestamp_thread);
-    pthread_join(timestamp_thread, NULL);
+    //pthread_cancel(timestamp_thread);
+    //pthread_join(timestamp_thread, NULL);
     
-    remove(filename);
+    //remove(filename);
 #endif    
     shutdown(sockfd, SHUT_RDWR);
     close(sockfd);
