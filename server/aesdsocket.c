@@ -28,7 +28,7 @@ typedef struct Node {
 
 // Define the singly linked list head
 SLIST_HEAD(LinkedList, Node); // Creates a struct { struct Node *slh_first; }
-const char *filename = "/var/tmp/aesdsocketdata";
+const char *filename = "/dev/aesdchar";
 volatile sig_atomic_t keep_running = 1;
 int clientfd, sockfd;
 pthread_mutex_t file_mutex;  // Mutex for file access
@@ -216,8 +216,8 @@ int main(int argc, char *argv[]) {
     struct LinkedList head = SLIST_HEAD_INITIALIZER(head); // Initialize the list
     SLIST_INIT(&head); // Ensure it's initialized
     
-    pthread_t timestamp_thread;
-    pthread_create(&timestamp_thread, NULL, writeTimestamp, NULL);
+    //pthread_t timestamp_thread;
+    //pthread_create(&timestamp_thread, NULL, writeTimestamp, NULL);
 
     
     while (keep_running) {
@@ -259,10 +259,10 @@ int main(int argc, char *argv[]) {
       SLIST_REMOVE(&head, node, Node, next);
       free(node);
     } 
-    pthread_cancel(timestamp_thread);
-    pthread_join(timestamp_thread, NULL);
+    //pthread_cancel(timestamp_thread);
+    //pthread_join(timestamp_thread, NULL);
     
-    remove(filename);
+    //remove(filename);
     shutdown(sockfd, SHUT_RDWR);
     close(sockfd);
     freeaddrinfo(servinfo);
