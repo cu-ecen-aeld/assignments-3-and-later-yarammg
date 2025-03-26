@@ -28,7 +28,11 @@ typedef struct Node {
 
 // Define the singly linked list head
 SLIST_HEAD(LinkedList, Node); // Creates a struct { struct Node *slh_first; }
+#ifdef USE_AESD_CHAR_DEVICE
 const char *filename = "/dev/aesdchar";
+#else
+const char *filename = "/var/tmp/aesdsocketdata";
+#endif
 volatile sig_atomic_t keep_running = 1;
 int clientfd, sockfd;
 pthread_mutex_t file_mutex;  // Mutex for file access
@@ -215,10 +219,11 @@ int main(int argc, char *argv[]) {
     char client_ip[INET_ADDRSTRLEN];
     struct LinkedList head = SLIST_HEAD_INITIALIZER(head); // Initialize the list
     SLIST_INIT(&head); // Ensure it's initialized
-    
-    //pthread_t timestamp_thread;
-    //pthread_create(&timestamp_thread, NULL, writeTimestamp, NULL);
 
+#ifndef USE_AESD_CHAR_DEVICE
+    pthread_t timestamp_thread;
+    pthread_create(&timestamp_thread, NULL, writeTimestamp, NULL);
+#endif
     
     while (keep_running) {
         clientfd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size);
@@ -258,11 +263,13 @@ int main(int argc, char *argv[]) {
       pthread_join(node->thread_id, NULL); 
       SLIST_REMOVE(&head, node, Node, next);
       free(node);
-    } 
-    //pthread_cancel(timestamp_thread);
-    //pthread_join(timestamp_thread, NULL);
+    }
+#ifndef USE_AESD_CHAR_DEVICE    
+    pthread_cancel(timestamp_thread);
+    pthread_join(timestamp_thread, NULL);
     
-    //remove(filename);
+    remove(filename);
+#endif    
     shutdown(sockfd, SHUT_RDWR);
     close(sockfd);
     freeaddrinfo(servinfo);
