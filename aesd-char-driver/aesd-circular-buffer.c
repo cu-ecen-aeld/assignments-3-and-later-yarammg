@@ -29,18 +29,20 @@
 struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer,
             size_t char_offset, size_t *entry_offset_byte_rtn )
 {
-  if (!buffer) return NULL;
-  if ((buffer->in_offs == buffer->out_offs) && !buffer->full) return NULL; //buffer is empty
+  if (!buffer){ PDEBUG(" Buffer is null ");return NULL;}
+  if ((buffer->in_offs == buffer->out_offs) && !buffer->full) {PDEBUG(" Buffer is empty "); return NULL;} //buffer is empty
   uint8_t index = buffer->out_offs;
   uint8_t count = 0;
+  PDEBUG("Read requested, current in_offset %u, current out_offset %u", buffer->in_offs, buffer->out_offs); 
   while(count < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
   { 
-    if(!buffer->full && index==buffer->in_offs) return NULL; //reached the end
+    if(!buffer->full && index==buffer->in_offs) {PDEBUG(" Reached the end"); return NULL;} //reached the end
     
     struct aesd_buffer_entry *entry = &(buffer->entry[index]);
     if ( char_offset < entry->size) // it is in this entry
       {
         * entry_offset_byte_rtn = char_offset;
+        PDEBUG("Reading %s...", entry->buffptr);
         return entry;
       }
       
@@ -49,6 +51,8 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
       index = (index+1)%AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
       
   }
+    entry_offset_byte_rtn = -1; //end of file
+    PDEBUG("Shouldnt reach here");
     return NULL;
 }
 
@@ -59,22 +63,29 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 * Any necessary locking must be handled by the caller
 * Any memory referenced in @param add_entry must be allocated by and/or must have a lifetime managed by the caller.
 */
-void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
+char * aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
-    if (!buffer || !add_entry) return;  // Safety check
+    char* to_free = NULL;
+    if (!buffer) {PDEBUG(" Buffer is null"); return NULL;} // Safety check
+    if (!add_entry) {PDEBUG(" Entry is null"); return NULL;} // Safety check
     
     if (buffer->full) {
+        PDEBUG(" Buffer is full, returning the oldest entry to be freed");
+        to_free =  buffer->entry[buffer->out_offs].buffptr;
         buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
     // add entry
-    buffer->entry[buffer->in_offs] = *add_entry;
-    
+    //memcpy(&(buffer->entry[buffer->in_offs]), add_entry, sizeof(struct aesd_buffer_entry));
+    buffer->entry[buffer->in_offs].buffptr=add_entry->buffptr;
+    buffer->entry[buffer->in_offs].size=add_entry->size;
     buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     if(buffer->in_offs == buffer->out_offs)
     {
       buffer->full = true;
-    }    
-
+    }
+    
+  PDEBUG(" Entry Added, current in_offset %u, current out_offset %u", buffer->in_offs, buffer->out_offs);  
+  return to_free;
 }
 
 /**
