@@ -18,6 +18,9 @@
 #include <linux/cdev.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
+#include "aesd_ioctl.h"
+#include <linux/uaccess.h>
+
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
 static int device_open = 0;
@@ -25,6 +28,71 @@ MODULE_AUTHOR("Yara Mohsen"); /** TODO: fill in your name **/
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
+
+loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
+{
+  loff_t newpos=0,file_size=0;
+  uint8_t index=0;
+  struct aesd_buffer_entry *entry;
+ 
+ //Lock mutex
+  if (mutex_lock_interruptible(&aesd_device.lock))
+    return -ERESTARTSYS; 
+  //get the current size of the buffer
+  AESD_CIRCULAR_BUFFER_FOREACH(entry,&(aesd_device.circular_buffer),index) {
+    file_size+=entry->size; 
+  }
+ 
+  mutex_unlock(&aesd_device.lock);
+  newpos = fixed_size_llseek(filp, off, whence, file_size); 
+  return newpos;
+}
+
+long aesd_adjust_file_offset(struct file *filp,unsigned int write_cmd,unsigned int write_cmd_offset)
+{
+  unsigned int newpos=0;
+  long retval=0;
+  // Lock mutex 
+  if (mutex_lock_interruptible(&aesd_device.lock))
+    return -ERESTARTSYS; 
+ 
+  if ((write_cmd >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)||(write_cmd_offset >= aesd_device.circular_buffer.entry[write_cmd].size)) 
+  {
+    retval= -EINVAL;  //write cmd or offset greater than the maximum possible size
+    mutex_unlock(&aesd_device.lock);
+    return retval;
+  }
+  for (int i = 0; i < write_cmd; i++) 
+  { 
+    newpos = newpos+ aesd_device.circular_buffer.entry[i].size;
+  }
+  
+  filp->f_pos = newpos+ write_cmd_offset;
+  retval= 0; 
+  mutex_unlock(&aesd_device.lock);
+  return retval;
+}
+ 
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) 
+{
+  long retval=0;
+  struct aesd_seekto seekto;
+  switch (cmd) {
+    case AESDCHAR_IOCSEEKTO:
+        if (copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)) != 0) //copy buffer from user
+            return -EFAULT;
+         else {
+         	retval=aesd_adjust_file_offset(filp,seekto.write_cmd,seekto.write_cmd_offset); 
+         	if(retval!=0)
+         		return -EFAULT;	
+         	}     
+        break;
+    default:
+        return -ENOTTY;
+        break;
+    }
+    return retval;
+}
 
 int aesd_open(struct inode *inode, struct file *filp)
 {
@@ -167,6 +235,8 @@ struct file_operations aesd_fops = {
     .write =    aesd_write,
     .open =     aesd_open,
     .release =  aesd_release,
+    .llseek =   aesd_llseek,
+    .unlocked_ioctl =aesd_ioctl,
 };
 
 static int aesd_setup_cdev(struct aesd_dev *dev)

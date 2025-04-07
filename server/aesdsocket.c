@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/queue.h>
+#include "../aesd-char-driver/aesd_ioctl.h"
 
 #define BUFFER_SIZE 1024
 
@@ -30,6 +31,7 @@ typedef struct Node {
 SLIST_HEAD(LinkedList, Node); // Creates a struct { struct Node *slh_first; }
 #ifdef USE_AESD_CHAR_DEVICE
 const char *filename = "/dev/aesdchar";
+#define IOCTL_CMD "AESDCHAR_IOCSEEKTO:"
 #else
 const char *filename = "/var/tmp/aesdsocketdata";
 #endif
@@ -81,36 +83,54 @@ void * writeTimestamp(void *arg)
 void * sendrecv(void *arg)
 {
   Node* param = (Node *)arg;
-  
+
   char buffer[BUFFER_SIZE];
   ssize_t bytes_read;
   while ((bytes_read = read(param->clientfd, buffer, sizeof(buffer))) > 0) 
   {
     char *newline = memchr(buffer, '\n', bytes_read);
-      if (newline)
-      {
+    if (newline)
+    { 
           size_t line_length = newline - buffer + 1;
           pthread_mutex_lock(&file_mutex);
-          int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0644);
+          int fd = open(filename, O_RDWR | O_CREAT | O_APPEND, 0644);
           if (fd == -1) {
               perror("Error opening file");
               pthread_mutex_unlock(&file_mutex);
               param->done =1;
               break;
           }
+#if (USE_AESD_CHAR_DEVICE )     
+	if (strncmp(buffer, IOCTL_CMD, strlen(IOCTL_CMD)) == 0)
+	{ //if ioctl cmd
+          unsigned int X,Y; //variables to hold write cmd and offset
+          if (sscanf(buffer, "AESDCHAR_IOCSEEKTO:%u,%u", &X, &Y) == 2) 
+          { //reads and verifies the formatted input
+            struct aesd_seekto seekto;
+            seekto.write_cmd = X;
+            seekto.write_cmd_offset = Y;
+            if(ioctl(fd, AESDCHAR_IOCSEEKTO, &seekto)<0)
+            {
+              printf("IOCTL failed.");
+            }
+           }
+        }
+        else
+ #endif 
+        {
           write(fd, buffer, line_length);
-          close(fd);
-          pthread_mutex_unlock(&file_mutex);
-          pthread_mutex_lock(&file_mutex);
-          int fd_read = open(filename, O_RDONLY);
-          if (fd_read == -1) {
-              perror("Error opening file");
-              pthread_mutex_unlock(&file_mutex);
-              param->done =1;
-              break;
-          }
+          //close(fd);
+          //pthread_mutex_unlock(&file_mutex);
+          //pthread_mutex_lock(&file_mutex);
+          //int fd_read = open(filename, O_RDONLY);
+          //if (fd == -1) {
+          //    perror("Error opening file");
+          //    pthread_mutex_unlock(&file_mutex);
+          //    param->done =1;
+          //    break;
+         }
           char buffer2[BUFFER_SIZE];
-          while ((bytes_read = read(fd_read, buffer2, sizeof(buffer2))) > 0) 
+          while ((bytes_read = read(fd, buffer2, sizeof(buffer2))) > 0) 
           {
               send(clientfd, buffer2, bytes_read, 0);
           }
@@ -118,7 +138,7 @@ void * sendrecv(void *arg)
           {
             printf("Error reading from file");
           }
-          close(fd_read);
+          close(fd);
           pthread_mutex_unlock(&file_mutex);
       }
       else
