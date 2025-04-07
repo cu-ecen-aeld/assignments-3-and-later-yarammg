@@ -29,9 +29,9 @@ typedef struct Node {
 
 // Define the singly linked list head
 SLIST_HEAD(LinkedList, Node); // Creates a struct { struct Node *slh_first; }
+#define IOCTL_CMD "AESDCHAR_IOCSEEKTO:"
 #ifdef USE_AESD_CHAR_DEVICE
 const char *filename = "/dev/aesdchar";
-#define IOCTL_CMD "AESDCHAR_IOCSEEKTO:"
 #else
 const char *filename = "/var/tmp/aesdsocketdata";
 #endif
@@ -103,6 +103,7 @@ void * sendrecv(void *arg)
 #if (1)     
 	if (strncmp(buffer, IOCTL_CMD, strlen(IOCTL_CMD)) == 0)
 	{ //if ioctl cmd
+	  printf("IOCTL command found.");
           unsigned int X,Y; //variables to hold write cmd and offset
           if (sscanf(buffer, "AESDCHAR_IOCSEEKTO:%u,%u", &X, &Y) == 2) 
           { //reads and verifies the formatted input
