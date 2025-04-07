@@ -100,7 +100,7 @@ void * sendrecv(void *arg)
               param->done =1;
               break;
           }
-#if (USE_AESD_CHAR_DEVICE )     
+#if (1)     
 	if (strncmp(buffer, IOCTL_CMD, strlen(IOCTL_CMD)) == 0)
 	{ //if ioctl cmd
           unsigned int X,Y; //variables to hold write cmd and offset
@@ -112,6 +112,10 @@ void * sendrecv(void *arg)
             if(ioctl(fd, AESDCHAR_IOCSEEKTO, &seekto)<0)
             {
               printf("IOCTL failed.");
+            }
+            else
+            {
+              printf("IOCTL succeeded.");
             }
            }
         }
