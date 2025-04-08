@@ -63,7 +63,8 @@ long aesd_adjust_file_offset(struct file *filp,unsigned int write_cmd,unsigned i
     mutex_unlock(&aesd_device.lock);
     return retval;
   }
-  for (int i = 0; i < write_cmd; i++) 
+  int i=0;
+  for (i = 0; i < write_cmd; i++) 
   { 
     newpos = newpos+ aesd_device.circular_buffer.entry[i].size;
   }
