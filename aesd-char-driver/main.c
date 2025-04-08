@@ -20,6 +20,7 @@
 #include "aesdchar.h"
 #include "aesd_ioctl.h"
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
