@@ -72,7 +72,7 @@ long aesd_adjust_file_offset(struct file *filp,unsigned int write_cmd,unsigned i
   mutex_unlock(&aesd_device.lock);
   return retval;
 }
- 
+
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) 
 {
   long retval=0;
@@ -93,7 +93,11 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     }
     return retval;
 }
-
+long aesd_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
+{
+    // Handle 32-bit userland compatibility here
+    return aesd_ioctl(file, cmd, arg);
+} 
 int aesd_open(struct inode *inode, struct file *filp)
 {
     PDEBUG("open");
@@ -237,7 +241,7 @@ struct file_operations aesd_fops = {
     .release =  aesd_release,
     .llseek =   aesd_llseek,
     .unlocked_ioctl =aesd_ioctl,
-    .compat_ioctl = compat_ptr_ioctl 
+    .compat_ioctl = aesd_ioctl_compat 
 };
 
 static int aesd_setup_cdev(struct aesd_dev *dev)
