@@ -99,8 +99,7 @@ void * sendrecv(void *arg)
               pthread_mutex_unlock(&file_mutex);
               param->done =1;
               break;
-          }
-#if (1)     
+          }    
 	if (strncmp(buffer, IOCTL_CMD, strlen(IOCTL_CMD)) == 0)
 	{ //if ioctl cmd
 	  printf("IOCTL command found.");
@@ -121,7 +120,6 @@ void * sendrecv(void *arg)
            }
         }
         else
- #endif 
         {
           write(fd, buffer, line_length);
           //close(fd);
