@@ -4,11 +4,12 @@
  *  Created on: Oct 23, 2019
  *      Author: Dan Walkes
  */
-#include "aesd-circular-buffer.h"
+
 #ifndef AESD_CHAR_DRIVER_AESDCHAR_H_
 #define AESD_CHAR_DRIVER_AESDCHAR_H_
 
-//#define AESD_DEBUG 1  //Remove comment on this line to enable debug
+#define AESD_DEBUG 1  //Remove comment on this line to enable debug
+#include "aesd-circular-buffer.h"
 
 #undef PDEBUG             /* undef it, just in case */
 #ifdef AESD_DEBUG
@@ -25,16 +26,23 @@
 
 struct aesd_dev
 {
-    /**
-     * TODO: Add structure(s) and locks needed to complete assignment requirements
-     */
-    struct cdev cdev;     /* Char device structure      */
-    struct aesd_circular_buffer circular_buffer; /* buffer */
-    struct mutex lock;
-    char * partial_data;
-    size_t partial_size;
-    
+    struct mutex lock;  // binary semaphore
+    struct aesd_circular_buffer buffer; // structure to the buffer
+    struct aesd_buffer_entry entry;  //structure to each entry  of the buffer
+    struct cdev cdev;     // Char device structure 
 };
 
 
+int aesd_open(struct inode *inode, struct file *filp);
+int aesd_release(struct inode *inode, struct file *filp);
+ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
+                loff_t *f_pos);
+ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
+                loff_t *f_pos);
+long aesd_ioctl(struct file *filp, unsigned int command, unsigned long arg);               
+loff_t aesd_llseek(struct file *filp, loff_t off, int f_flags);    
+long aesd_adjust_file_offset(struct file *filp,unsigned int write_cmd,unsigned int write_cmd_offset);            
+static int aesd_setup_cdev(struct aesd_dev *dev);                             
+ int aesd_init_module(void);
+ void aesd_cleanup_module(void) ;
 #endif /* AESD_CHAR_DRIVER_AESDCHAR_H_ */
