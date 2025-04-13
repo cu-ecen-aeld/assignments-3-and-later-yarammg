@@ -38,12 +38,8 @@ CHAT-GPT--how to initialize HEAD without using init_slist
 #define BUFFER_SIZE 1024
 #define USE_AESD_CHAR_DEVICE (1)
 
-#if USE_AESD_CHAR_DEVICE
 #define WRITE_FILE ("/dev/aesdchar") // driver already performs locking
 #define IOCTL_CMD "AESDCHAR_IOCSEEKTO:"
-#else
-#define WRITE_FILE ("/var/tmp/aesdsocketdata") // locks can be used
-#endif
 
 int sockfd = 0;
 volatile sig_atomic_t handler_exit = 0;
@@ -194,8 +190,10 @@ void *fileIO(void *arg)
     /////////////////////////////////////IOCTL OPERATIONS///////////////////////////////////////////////////
     if (new_line == 1)// newline occured
     { 
+        syslog(LOG_ERR, "%%%%%%%%NEW LINE FOUND");
         if (ioctl_cmd)// if ioctl command
         { 
+            syslog(LOG_ERR, "%%%%%%%%IOCTL COMMAND FOUND");
             syslog(LOG_INFO, "AESDCHAR_IOCSEEKTO found so sending data");
 #if (USE_AESD_CHAR_DEVICE)
             unsigned int X, Y; // variables to hold write cmd and offset
@@ -214,9 +212,10 @@ void *fileIO(void *arg)
                 }
                 else // opened
                 {
+                    syslog(LOG_ERR, "%%%%%%%%CHAR DEVICE OPENED");
                     if (ioctl(fd, AESDCHAR_IOCSEEKTO, &seekto) == 0) // ioctl  successfull
                     {
-                        syslog(LOG_INFO, "IOCTL successfull");
+                        syslog(LOG_ERR, "IOCTL successfull");
 
                         size_t bytes_read = 0;
                         while ((bytes_read = read(fd, read_buffer, BUFFER_SIZE)) > 0)
@@ -239,7 +238,7 @@ void *fileIO(void *arg)
         /////////////////////////////////////WRITING TO FILE////////////////////////////////////////////////////
         else
         { // if not ioctl cmd write to the device
-            syslog(LOG_INFO, "AESDCHAR_IOCSEEKTO not found so writing to buffer");
+            syslog(LOG_ERR, "AESDCHAR_IOCSEEKTO not found so writing to buffer");
 #if (!USE_AESD_CHAR_DEVICE)
             pthread_mutex_lock(&file_lock); // Lock the file before writing/reading
 #endif
