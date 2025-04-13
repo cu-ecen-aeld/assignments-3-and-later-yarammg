@@ -204,7 +204,7 @@ void *fileIO(void *arg)
                 struct aesd_seekto seekto;
                 seekto.write_cmd = X;
                 seekto.write_cmd_offset = Y;
-                int fd = open(file_param.write_file, O_RDWR);
+                int fd = open("/dev/aesdchar", O_RDWR);
                 if (fd < 0) // cannot be opened
                 {
                     syslog(LOG_ERR, "File open failed by ioctl");
